@@ -133,7 +133,6 @@ def create_word_export(topic, syllabus, text):
     doc.add_heading("HOD Approval & Remarks", level=1)
     hod_table = doc.add_table(rows=3, cols=2)
     hod_table.style = 'Table Grid'
-    hod_table.rows[1].height = Pt(60)
     hod_table.cell(0, 0).text = "Remark"
     hod_table.cell(0, 1).text = "Signature / Stamp"
     hod_table.rows[1].height = Pt(30)
@@ -176,7 +175,7 @@ st.markdown(
     <div style='text-align: center; color: grey; font-size: 0.8em;'>
         <p><b>Smart PEDATI Lesson Plan AI-Generator v1.0</b></p>
         <p>Developed & Conceptualized by: <b>[Hajah Nurul Haziqah @ Hjh Hartini Hj Nordin]</b></p>
-        <p>© 2026 PTES Academic Innovation Computer Science</p>
+        <p>© 2026 BSc(Honors) in Computer Science, University of Strathclyde</p>
     </div>
     """,
     unsafe_allow_html=True
