@@ -6,12 +6,12 @@ from io import BytesIO
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="PEDATI Master Planner", layout="wide")
-st.title("🎓 PEDATI Lesson Plan Generator")
+st.title("🎓 PEDATI SMART LESSON PLANNER")
 
 # --- SIDEBAR FOR USER API KEY ---
 st.sidebar.header("🔑 Authentication")
 user_api_key = st.sidebar.text_input(
-    "Enter your Gemini API Key:", 
+    "Enter your API Key:", 
     type="password", 
     help="Get your API key from Google AI Studio using your Gmail account."
 )
@@ -133,9 +133,10 @@ def create_word_export(topic, syllabus, text):
     doc.add_heading("HOD Approval & Remarks", level=1)
     hod_table = doc.add_table(rows=3, cols=2)
     hod_table.style = 'Table Grid'
+    hod_table.rows[1].height = Pt(60)
     hod_table.cell(0, 0).text = "Remark"
     hod_table.cell(0, 1).text = "Signature / Stamp"
-    hod_table.rows[1].height = Pt(60)
+    hod_table.rows[1].height = Pt(30)
     hod_table.cell(2, 0).text = "Date:"
     hod_table.cell(2, 1).text = "Name:"
 
