@@ -146,8 +146,8 @@ def create_word_export(topic, syllabus, text):
             hdr = table.rows[0].cells
             
             hdr[0].paragraphs[0].add_run('STAGE (PEDATI)').bold = True
-            hdr[1].paragraphs[0].add_run('FACILITATOR (CB)').bold = True
-            hdr[2].paragraphs[0].add_run('STUDENT (SB)').bold = True
+            hdr[1].paragraphs[0].add_run('STUDENTS/LEANERS').bold = True
+            hdr[2].paragraphs[0].add_run('TUTOR/FACILITATOR').bold = True
 
             for line in content_lines:
                 cleaned_line = line.replace("**", "")
@@ -223,7 +223,7 @@ if 'pedati_out' in st.session_state:
     st.download_button(
         label="📥 DOWNLOAD WORD (.DOCX)", 
         data=doc_file, 
-        file_name=f"PEDATI_MASTER_{u_topic.upper().replace(' ', '_')}.docx",
+        file_name=f"PEDATI_LP_{u_topic.upper().replace(' ', '_')}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
