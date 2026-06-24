@@ -233,8 +233,8 @@ st.markdown(
     """
     <div style='text-align: center; color: grey; font-size: 0.8em;'>
         <p><b>SMART PEDATI LESSON PLAN AI-GENERATOR V1.0</b></p>
-        <p>DEVELOPED & CONCEPTUALIZED BY: <b>[HAJAH NURUL HAZIQAH @ HJH HARTINI HJ NORDIN]</b></p>
-        <p>© 2026 BSC(HONORS) IN COMPUTER SCIENCE, UNIVERSITY OF STRATHCLYDE</p>
+        <p>CONCEPTUALIZED BY: <b>HAJAH NURUL HAZIQAH @ HJH HARTINI HJ NORDIN</b></p>
+        <p>© 2026 BSC H.M IN COMPUTER SCIENCE, UNIVERSITY OF STRATHCLYDE</p>
     </div>
     """,
     unsafe_allow_html=True
