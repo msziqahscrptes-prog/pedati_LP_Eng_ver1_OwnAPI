@@ -146,8 +146,8 @@ def create_word_export(topic, syllabus, text):
             hdr = table.rows[0].cells
             
             hdr[0].paragraphs[0].add_run('STAGE (PEDATI)').bold = True
-            hdr[1].paragraphs[0].add_run('STUDENTS/LEANERS').bold = True
-            hdr[2].paragraphs[0].add_run('TUTOR/FACILITATOR').bold = True
+            hdr[1].paragraphs[0].add_run(' ACTIVITY 1 ').bold = True
+            hdr[2].paragraphs[0].add_run(' ACTIVITY 2 ').bold = True
 
             for line in content_lines:
                 cleaned_line = line.replace("**", "")
