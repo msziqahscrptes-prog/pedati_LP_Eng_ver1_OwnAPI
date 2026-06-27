@@ -2,6 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 from docx import Document
 from docx.shared import Pt, Inches
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from io import BytesIO
 
 # --- 1. CONFIGURATION ---
@@ -21,12 +23,12 @@ def get_working_model(api_key):
         genai.configure(api_key=api_key)
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
-                return m.name
+                if "flash" in m.name:
+                    return m.name
+        return "models/gemini-1.5-flash"
     except Exception as e:
         st.error(f"INVALID API KEY OR CONNECTION ERROR: {str(e)}")
         return None
-    return "models/gemini-1.5-flash"  # Default fallback
-
 
 # Process model assignment if the key is provided
 selected_model_name = None
@@ -82,115 +84,200 @@ def generate_pedati_plan(topic, syllabus, extra_context, api_key, model_name):
     """
     try:
         response = model.generate_content(prompt)
-        # Explicit clean-up replacement step to wipe out double asterisks completely
         return response.text.replace("**", "")
     except Exception as e:
         return f"SYSTEM ERROR: {str(e)}"
 
 
-# --- 3. WORD DOCUMENT EXPORT ENGINE (14PT FONT & SINGLE SPACING) ---
+# --- Helper Function for Word XML Native Page Numbers ---
+def add_page_number(run):
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = "PAGE"
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'separate')
+    fldChar3 = OxmlElement('w:fldChar')
+    fldChar3.set(qn('w:fldCharType'), 'end')
+    
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+    run._r.append(fldChar3)
+
+
+# --- 3. WORD DOCUMENT EXPORT ENGINE (RECONFIGURED) ---
 def create_word_export(topic, syllabus, text):
     doc = Document()
     
-    # Global document layout formatting override configurations
+    # 1. Page Size Setup (Letter dimensions: 8.5" x 11.5") & 0.5" Margins
+    section = doc.sections[0]
+    section.page_width = Inches(8.5)
+    section.page_height = Inches(11.5)
+    section.top_margin = Inches(0.5)
+    section.bottom_margin = Inches(0.5)
+    section.left_margin = Inches(0.5)
+    section.right_margin = Inches(0.5)
+    
+    # 2. Add Native Page Numbering to Footer
+    footer = section.footer
+    footer_p = footer.paragraphs[0]
+    footer_p.alignment = 2  # Right aligned
+    footer_run = footer_p.add_run("Page ")
+    footer_run.font.name = 'Arial Narrow'
+    footer_run.font.size = Pt(10)
+    add_page_number(footer_run)
+
+    # 3. Global Dynamic Typography & Spacing Configurations (Base Content: 12pt)
     style = doc.styles['Normal']
     font = style.font
-    font.name = 'Arial'
-    font.size = Pt(14)  # Set 14 points font size
+    font.name = 'Arial Narrow'
+    font.size = Pt(12)
     
     p_format = style.paragraph_format
-    p_format.line_spacing = 1.0  # Set 1 paragraph / single spacing
-    p_format.space_after = Pt(12)  # Maintain clean paragraph block dynamic gap
+    p_format.line_spacing = 1.0  # Tight single spacing
+    p_format.space_after = Pt(0)   # Clean compression
+    p_format.space_before = Pt(0)
 
-    # Document Header Title - FULL CAPITAL LETTERS
+    # Document Header Title - 14PT, BOLD & CAPITAL LETTERS
     title_p = doc.add_paragraph()
-    run_title = title_p.add_run(f'LESSON PLAN: {topic.upper()} ({syllabus.upper()})')
+    title_text = f'LESSON PLAN: {topic.upper()} ({syllabus.upper()})'
+    run_title = title_p.add_run(title_text)
     run_title.bold = True
-    run_title.font.size = Pt(18)
+    run_title.font.size = Pt(14)
+    title_p.paragraph_format.space_after = Pt(6)
 
-    # 1. Admin Header Table (6-field layout)
+    # Admin Header Table (6-field layout)
     admin_table = doc.add_table(rows=3, cols=4)
     admin_table.style = 'Table Grid'
     labels = [["WEEK NO:", "DATE:"], ["NO. OF STUDENTS:", "DAY:"], ["VENUE / LAB NO:", "DURATION (MINS):"]]
     for r in range(3):
-        admin_table.cell(r, 0).paragraphs[0].add_run(labels[r][0]).bold = True
-        admin_table.cell(r, 2).paragraphs[0].add_run(labels[r][1]).bold = True
-    doc.add_paragraph()
+        for col_idx, text_lbl in [(0, labels[r][0]), (2, labels[r][1])]:
+            cell_p = admin_table.cell(r, col_idx).paragraphs[0]
+            cell_p.paragraph_format.line_spacing = 1.0
+            cell_p.paragraph_format.space_after = Pt(0)
+            run = cell_p.add_run(text_lbl)
+            run.bold = True
+            run.font.size = Pt(12)
+    
+    # Spacer paragraph
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_after = Pt(6)
 
-    # 2. Resources Table
+    # Resources Table Header - 14PT & CAPITAL LETTERS
     p_res = doc.add_paragraph()
-    p_res.add_run("RESOURCES & MATERIALS").bold = True
+    run_res_hdr = p_res.add_run("RESOURCES & MATERIALS")
+    run_res_hdr.bold = True
+    run_res_hdr.font.size = Pt(14)
+    p_res.paragraph_format.space_after = Pt(4)
+    
     res_table = doc.add_table(rows=1, cols=1)
     res_table.style = 'Table Grid'
     res_cell_p = res_table.cell(0, 0).paragraphs[0]
     res_cell_p.paragraph_format.line_spacing = 1.0
-    res_cell_p.add_run("Smart board, Chromebook, Writing table, Projector, Screen share with laptop")
-    doc.add_paragraph()
+    res_cell_p.paragraph_format.space_after = Pt(0)
+    res_run = res_cell_p.add_run("Smart board, Chromebook, Writing table, Projector, Screen share with laptop")
+    res_run.font.size = Pt(12)
+    
+    spacer2 = doc.add_paragraph()
+    spacer2.paragraph_format.space_after = Pt(6)
 
-    # 3. Content Parsing & Table Boxing with Asterisk Filtering
+    # Content Parsing & Table Boxing
     sections = text.split('SECTION:')
     for section in sections:
         if not section.strip(): 
             continue
             
         lines = section.strip().split('\n')
-        title = lines[0].strip().upper().replace("**", "")  # Enforce FULL CAPITAL LETTERS for titles
+        title = lines[0].strip().upper().replace("**", "")
         content_lines = lines[1:]
 
+        # Section Heading - 14PT, BOLD & CAPITAL LETTERS
         p_sec = doc.add_paragraph()
-        p_sec.add_run(title).bold = True
+        run_sec_title = p_sec.add_run(title)
+        run_sec_title.bold = True
+        run_sec_title.font.size = Pt(14)
+        p_sec.paragraph_format.space_after = Pt(4)
 
         if "|" in section and "PEDATI" in title:
             table = doc.add_table(rows=1, cols=3)
             table.style = 'Table Grid'
             hdr = table.rows[0].cells
             
-            hdr[0].paragraphs[0].add_run('STAGE (PEDATI)').bold = True
-            hdr[1].paragraphs[0].add_run(' ACTIVITY 1 ').bold = True
-            hdr[2].paragraphs[0].add_run(' ACTIVITY 2 ').bold = True
+            # Table Header Content - 12PT Bold
+            for idx, h_text in enumerate(['STAGE (PEDATI)', ' ACTIVITY 1 ', ' ACTIVITY 2 ']):
+                hdr_p = hdr[idx].paragraphs[0]
+                hdr_p.paragraph_format.line_spacing = 1.0
+                hdr_p.paragraph_format.space_after = Pt(0)
+                hrun = hdr_p.add_run(h_text)
+                hrun.bold = True
+                hrun.font.size = Pt(12)
 
             for line in content_lines:
-                cleaned_line = line.replace("**", "")
+                cleaned_line = line.replace("**", "").strip()
                 if "|" in cleaned_line:
                     p = cleaned_line.split("|")
-                    row_cells = table.add_row().cells
-                    
-                    # Layout formatting rule injections to cell text elements
-                    for cell in row_cells:
-                        cell.paragraphs[0].paragraph_format.line_spacing = 1.0
-                    
-                    row_cells[0].paragraphs[0].add_run(p[0].split(":")[-1].strip().upper()) # Keep stages inside table clean and capitalized
-                    row_cells[1].paragraphs[0].add_run(p[1].split(":")[-1].strip())
-                    row_cells[2].paragraphs[0].add_run(p[2].split(":")[-1].strip())
-            doc.add_paragraph()
+                    if len(p) >= 3:
+                        row_cells = table.add_row().cells
+                        
+                        col_0 = p[0].split(":")[-1].strip().upper() if ":" in p[0] else p[0].strip().upper()
+                        col_1 = p[1].split(":")[-1].strip() if ":" in p[1] else p[1].strip()
+                        col_2 = p[2].split(":")[-1].strip() if ":" in p[2] else p[2].strip()
+                        
+                        for c_idx, c_text in enumerate([col_0, col_1, col_2]):
+                            cell_p = row_cells[c_idx].paragraphs[0]
+                            cell_p.paragraph_format.line_spacing = 1.0
+                            cell_p.paragraph_format.space_after = Pt(0)
+                            c_run = cell_p.add_run(c_text)
+                            c_run.font.size = Pt(12)
+                            if c_idx == 0:
+                                c_run.bold = True
+            
+            s_par = doc.add_paragraph()
+            s_par.paragraph_format.space_after = Pt(6)
         else:
             table = doc.add_table(rows=1, cols=1)
             table.style = 'Table Grid'
             cell_p = table.cell(0, 0).paragraphs[0]
             cell_p.paragraph_format.line_spacing = 1.0
+            cell_p.paragraph_format.space_after = Pt(0)
             
             cleaned_body = "\n".join([l.strip() for l in content_lines if l.strip()]).replace("**", "")
-            cell_p.add_run(cleaned_body)
-            doc.add_paragraph()
+            body_run = cell_p.add_run(cleaned_body)
+            body_run.font.size = Pt(12)
+            
+            s_par = doc.add_paragraph()
+            s_par.paragraph_format.space_after = Pt(6)
 
     # 4. HOD Approval Page
     doc.add_page_break()
     p_hod = doc.add_paragraph()
-    p_hod.add_run("HOD APPROVAL & REMARKS").bold = True
+    run_hod = p_hod.add_run("HOD APPROVAL & REMARKS")
+    run_hod.bold = True
+    run_hod.font.size = Pt(14)
+    p_hod.paragraph_format.space_after = Pt(4)
     
     hod_table = doc.add_table(rows=3, cols=2)
     hod_table.style = 'Table Grid'
-    hod_table.cell(0, 0).paragraphs[0].add_run("REMARK").bold = True
-    hod_table.cell(0, 1).paragraphs[0].add_run("SIGNATURE / STAMP").bold = True
+    
+    headers_hod = [("REMARK", 0, 0), ("SIGNATURE / STAMP", 0, 1), ("DATE:", 2, 0), ("NAME:", 2, 1)]
+    for text_val, r_i, c_i in headers_hod:
+        hp = hod_table.cell(r_i, c_i).paragraphs[0]
+        hp.paragraph_format.line_spacing = 1.0
+        hp.paragraph_format.space_after = Pt(0)
+        hrun = hp.add_run(text_val)
+        hrun.bold = True
+        hrun.font.size = Pt(12)
+        
     hod_table.rows[1].height = Pt(40)
-    hod_table.cell(2, 0).paragraphs[0].add_run("DATE:").bold = True
-    hod_table.cell(2, 1).paragraphs[0].add_run("NAME:").bold = True
 
-    # Adjust spacing across all generated grid cells
-    for row in admin_table.rows:
-        for cell in row.cells: cell.paragraphs[0].paragraph_format.line_spacing = 1.0
-    for row in hod_table.rows:
-        for cell in row.cells: cell.paragraphs[0].paragraph_format.line_spacing = 1.0
+    # Apply tight layout format structure configurations to all table elements
+    for t in [admin_table, hod_table]:
+        for row in t.rows:
+            for cell in row.cells:
+                cell.paragraphs[0].paragraph_format.line_spacing = 1.0
+                cell.paragraphs[0].paragraph_format.space_after = Pt(0)
 
     bio = BytesIO()
     doc.save(bio)
