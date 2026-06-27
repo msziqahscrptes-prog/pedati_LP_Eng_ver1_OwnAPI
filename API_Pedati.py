@@ -107,11 +107,11 @@ def add_page_number(run):
     run._r.append(fldChar3)
 
 
-# --- 3. WORD DOCUMENT EXPORT ENGINE (RECONFIGURED) ---
+# --- 3. WORD DOCUMENT EXPORT ENGINE ---
 def create_word_export(topic, syllabus, text):
     doc = Document()
     
-    # 1. Page Size Setup (Letter dimensions: 8.5" x 11.5") & 0.5" Margins
+    # Page Size Setup (Letter: 8.5" x 11.5") & 0.5" Margins
     section = doc.sections[0]
     section.page_width = Inches(8.5)
     section.page_height = Inches(11.5)
@@ -120,7 +120,7 @@ def create_word_export(topic, syllabus, text):
     section.left_margin = Inches(0.5)
     section.right_margin = Inches(0.5)
     
-    # 2. Add Native Page Numbering to Footer
+    # Page Number Setup in Footer
     footer = section.footer
     footer_p = footer.paragraphs[0]
     footer_p.alignment = 2  # Right aligned
@@ -129,18 +129,18 @@ def create_word_export(topic, syllabus, text):
     footer_run.font.size = Pt(10)
     add_page_number(footer_run)
 
-    # 3. Global Dynamic Typography & Spacing Configurations (Base Content: 12pt)
+    # Typography & Spacing Rules (12pt Base)
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial Narrow'
     font.size = Pt(12)
     
     p_format = style.paragraph_format
-    p_format.line_spacing = 1.0  # Tight single spacing
-    p_format.space_after = Pt(0)   # Clean compression
+    p_format.line_spacing = 1.0
+    p_format.space_after = Pt(0)
     p_format.space_before = Pt(0)
 
-    # Document Header Title - 14PT, BOLD & CAPITAL LETTERS
+    # Document Title (14pt, Capitalized)
     title_p = doc.add_paragraph()
     title_text = f'LESSON PLAN: {topic.upper()} ({syllabus.upper()})'
     run_title = title_p.add_run(title_text)
@@ -148,7 +148,7 @@ def create_word_export(topic, syllabus, text):
     run_title.font.size = Pt(14)
     title_p.paragraph_format.space_after = Pt(6)
 
-    # Admin Header Table (6-field layout)
+    # Admin Table Configuration
     admin_table = doc.add_table(rows=3, cols=4)
     admin_table.style = 'Table Grid'
     labels = [["WEEK NO:", "DATE:"], ["NO. OF STUDENTS:", "DAY:"], ["VENUE / LAB NO:", "DURATION (MINS):"]]
@@ -161,11 +161,10 @@ def create_word_export(topic, syllabus, text):
             run.bold = True
             run.font.size = Pt(12)
     
-    # Spacer paragraph
     spacer = doc.add_paragraph()
     spacer.paragraph_format.space_after = Pt(6)
 
-    # Resources Table Header - 14PT & CAPITAL LETTERS
+    # Resources Section
     p_res = doc.add_paragraph()
     run_res_hdr = p_res.add_run("RESOURCES & MATERIALS")
     run_res_hdr.bold = True
@@ -183,7 +182,7 @@ def create_word_export(topic, syllabus, text):
     spacer2 = doc.add_paragraph()
     spacer2.paragraph_format.space_after = Pt(6)
 
-    # Content Parsing & Table Boxing
+    # Content Processing Blocks
     sections = text.split('SECTION:')
     for section in sections:
         if not section.strip(): 
@@ -193,19 +192,55 @@ def create_word_export(topic, syllabus, text):
         title = lines[0].strip().upper().replace("**", "")
         content_lines = lines[1:]
 
-        # Section Heading - 14PT, BOLD & CAPITAL LETTERS
+        # Section Headings (14pt, Bold, Capitals)
         p_sec = doc.add_paragraph()
         run_sec_title = p_sec.add_run(title)
         run_sec_title.bold = True
         run_sec_title.font.size = Pt(14)
         p_sec.paragraph_format.space_after = Pt(4)
 
-        if "|" in section and "PEDATI" in title:
+        # OPTION A: KEYWORDS Custom 3x2 Centered Grid Parsing
+        if "KEYWORDS" in title:
+            keywords_list = []
+            for line in content_lines:
+                cleaned_item = line.replace("**", "").strip()
+                if cleaned_item:
+                    # Strip standard numeric indexing prefixes if present
+                    if '.' in cleaned_item and cleaned_item.split('.', 1)[0].strip().isdigit():
+                        cleaned_item = cleaned_item.split('.', 1)[1].strip()
+                    keywords_list.append(cleaned_item)
+            
+            # Ensure the structure contains exactly 6 items safely
+            while len(keywords_list) < 6:
+                keywords_list.append("")
+            keywords_list = keywords_list[:6]
+            
+            # Create a 2 Rows x 3 Columns Table
+            key_table = doc.add_table(rows=2, cols=3)
+            key_table.style = 'Table Grid'
+            
+            kw_idx = 0
+            for row_i in range(2):
+                for col_i in range(3):
+                    cell = key_table.cell(row_i, col_i)
+                    cell_p = cell.paragraphs[0]
+                    cell_p.paragraph_format.line_spacing = 1.0
+                    cell_p.paragraph_format.space_after = Pt(0)
+                    cell_p.alignment = 1  # 1 corresponds to Center-aligned alignment rules
+                    
+                    kw_run = cell_p.add_run(keywords_list[kw_idx])
+                    kw_run.font.size = Pt(12)
+                    kw_idx += 1
+            
+            s_par = doc.add_paragraph()
+            s_par.paragraph_format.space_after = Pt(6)
+
+        # OPTION B: PEDATI Stages Grid Splitter 
+        elif "|" in section and "PEDATI" in title:
             table = doc.add_table(rows=1, cols=3)
             table.style = 'Table Grid'
             hdr = table.rows[0].cells
             
-            # Table Header Content - 12PT Bold
             for idx, h_text in enumerate(['STAGE (PEDATI)', ' ACTIVITY 1 ', ' ACTIVITY 2 ']):
                 hdr_p = hdr[idx].paragraphs[0]
                 hdr_p.paragraph_format.line_spacing = 1.0
@@ -236,6 +271,8 @@ def create_word_export(topic, syllabus, text):
             
             s_par = doc.add_paragraph()
             s_par.paragraph_format.space_after = Pt(6)
+            
+        # OPTION C: Standard Box Containers
         else:
             table = doc.add_table(rows=1, cols=1)
             table.style = 'Table Grid'
@@ -250,7 +287,7 @@ def create_word_export(topic, syllabus, text):
             s_par = doc.add_paragraph()
             s_par.paragraph_format.space_after = Pt(6)
 
-    # 4. HOD Approval Page
+    # 4. HOD Verification Setup
     doc.add_page_break()
     p_hod = doc.add_paragraph()
     run_hod = p_hod.add_run("HOD APPROVAL & REMARKS")
@@ -272,7 +309,7 @@ def create_word_export(topic, syllabus, text):
         
     hod_table.rows[1].height = Pt(40)
 
-    # Apply tight layout format structure configurations to all table elements
+    # Ensure all extra tables adapt single spacing rules
     for t in [admin_table, hod_table]:
         for row in t.rows:
             for cell in row.cells:
